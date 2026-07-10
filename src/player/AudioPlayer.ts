@@ -170,18 +170,6 @@ const aCurLen = Buffer.alloc(4);
 const aSeekProp = Buffer.alloc(16);
 const aGuidNull = Buffer.alloc(16);
 
-export function initAudioGlobals(): void {
-  const coHr = ole32.symbols.CoInitializeEx(null, COINIT_APARTMENTTHREADED);
-  if (coHr < 0 && coHr >>> 0 !== RPC_E_CHANGED_MODE) {
-    console.error(`Audio: CoInitializeEx failed: ${coHr}`);
-  }
-}
-
-export function shutdownAudioGlobals(): void {
-  ole32.symbols.CoUninitialize();
-  ole32.close();
-}
-
 export function createAudioSource(path: string): AudioSource {
   const disabled: AudioSource = {
     ok: false,
@@ -393,7 +381,9 @@ export function createAudioSource(path: string): AudioSource {
     rate,
     channels,
     bits,
-    underruns: 0,
+    get underruns(): number {
+      return underruns;
+    },
     feed(): void {
       if (!alive) return;
       let anyFree = false;
@@ -448,7 +438,7 @@ export function createAudioSource(path: string): AudioSource {
       for (let i = 0; i < AUDIO_RING; i++)
         audioHdr[i]!.writeUInt32LE(WHDR_DONE | WHDR_PREPARED, 24);
       atEof = false;
-      const ticks = BigInt(Math.floor(seconds * bytesPerSec));
+      const ticks = BigInt(Math.floor(seconds * 1e7));
       aSeekProp.fill(0);
       aSeekProp.writeUInt16LE(VT_I8, 0);
       aSeekProp.writeBigInt64LE(ticks, 8);

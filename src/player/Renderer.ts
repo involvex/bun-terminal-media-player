@@ -5,7 +5,7 @@ const RAMP = " .:-=+*#%@";
 const RAMP_CODE = new Int32Array(RAMP.length);
 for (let i = 0; i < RAMP.length; i++) RAMP_CODE[i] = RAMP.charCodeAt(i);
 const RAMP_LAST = RAMP.length - 1;
-const UPPER_HALF = "\u2584".codePointAt(0)!;
+const UPPER_HALF = "\u2580".codePointAt(0)!;
 const BLACK: RGB = [0, 0, 0];
 
 const fgRGB: [number, number, number] = [0, 0, 0];

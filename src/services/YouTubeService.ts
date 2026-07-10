@@ -1,4 +1,5 @@
 import { type YouTubeResult } from "../types";
+import { tmpdir } from "node:os";
 
 export async function searchYouTube(query: string): Promise<YouTubeResult[]> {
   const results: YouTubeResult[] = [];
@@ -43,7 +44,7 @@ export async function searchYouTube(query: string): Promise<YouTubeResult[]> {
 }
 
 export async function downloadVideo(url: string): Promise<string | null> {
-  const tempDir = import.meta.dir || ".";
+  const tempDir = tmpdir();
   const outputPath = `${tempDir}/temp_video.%(ext)s`;
 
   try {

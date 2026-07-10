@@ -9,8 +9,6 @@ import {
 } from "./player/VideoPlayer";
 import {
   createAudioSource,
-  initAudioGlobals,
-  shutdownAudioGlobals,
   closeWinmm,
   closeMfreadwrite as closeAudioMfreadwrite,
 } from "./player/AudioPlayer";
@@ -312,10 +310,11 @@ Controls:
   ESC/Q   Quit
 
 Environment Variables:
-  VIDEO_MODE=ascii    Start in ASCII mode (default: half-block)
-  BENCH=1             Headless benchmark mode
-  CAPTURE_PNG=1       Capture first frame to PNG
-  FPS_REPORT=1        Print frame statistics
+  VIDEO_MODE=ascii      Start in ASCII mode (default: half-block)
+  VIDEO_OVERLAY=1       Always show overlay (default: auto-hide)
+  BENCH=1               Headless benchmark mode
+  CAPTURE_PNG=1         Capture first frame to PNG
+  FPS_REPORT=1          Print frame statistics
 `);
     return;
   }
