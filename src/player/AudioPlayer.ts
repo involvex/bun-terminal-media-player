@@ -136,6 +136,8 @@ const winmm = dlopen("winmm.dll", {
   waveOutRestart: { args: [FFIType.u64], returns: FFIType.u32 },
   waveOutReset: { args: [FFIType.u64], returns: FFIType.u32 },
   waveOutClose: { args: [FFIType.u64], returns: FFIType.u32 },
+  waveOutSetVolume: { args: [FFIType.u64, FFIType.u32], returns: FFIType.u32 },
+  waveOutGetVolume: { args: [FFIType.u64, FFIType.ptr], returns: FFIType.u32 },
 });
 
 const AUDIO_RING = 8;
@@ -191,6 +193,8 @@ export function createAudioSource(path: string): AudioSource {
     masterSec: () => 0,
     pause: () => {},
     resume: () => {},
+    seekTo: () => {},
+    setVolume: () => {},
     shutdown: () => {},
   };
 
@@ -437,6 +441,30 @@ export function createAudioSource(path: string): AudioSource {
     },
     resume(): void {
       if (alive) winmm.symbols.waveOutRestart(hwo);
+    },
+    seekTo(seconds: number): void {
+      if (!alive) return;
+      winmm.symbols.waveOutReset(hwo);
+      for (let i = 0; i < AUDIO_RING; i++)
+        audioHdr[i]!.writeUInt32LE(WHDR_DONE | WHDR_PREPARED, 24);
+      atEof = false;
+      const ticks = BigInt(Math.floor(seconds * bytesPerSec));
+      aSeekProp.fill(0);
+      aSeekProp.writeUInt16LE(VT_I8, 0);
+      aSeekProp.writeBigInt64LE(ticks, 8);
+      vcall(
+        reader,
+        READER_SET_CURRENT_POSITION,
+        [FFIType.ptr, FFIType.ptr],
+        [aGuidNull.ptr!, aSeekProp.ptr!],
+      );
+    },
+    setVolume(left: number, right: number): void {
+      if (!alive) return;
+      const l = Math.max(0, Math.min(1, left));
+      const r = Math.max(0, Math.min(1, right));
+      const packed = (Math.round(r * 0xffff) << 16) | Math.round(l * 0xffff);
+      winmm.symbols.waveOutSetVolume(hwo, packed);
     },
     shutdown(): void {
       if (!alive) return;

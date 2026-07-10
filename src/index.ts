@@ -1,20 +1,8 @@
-import {
-  CFunction,
-  FFIType,
-  dlopen,
-  read,
-  toArrayBuffer,
-  type Pointer,
-} from "bun:ffi";
+import { FFIType, dlopen } from "bun:ffi";
 import "@bun-win32/core";
 import Mfplat from "@bun-win32/mfplat";
-import { CharTerm, runText, type RGB } from "@bun-win32/terminal";
-import type {
-  DecodedFrame,
-  VideoSource,
-  AudioSource,
-  PlaybackMode,
-} from "./types";
+import { runText, type RGB } from "@bun-win32/terminal";
+import type { PlaybackMode } from "./types";
 import {
   createVideoSource,
   closeMfreadwrite as closeVideoMfreadwrite,
@@ -26,24 +14,13 @@ import {
   closeWinmm,
   closeMfreadwrite as closeAudioMfreadwrite,
 } from "./player/AudioPlayer";
-import {
-  renderHalfBlock,
-  renderAscii,
-  ensureLut,
-  buildLut,
-} from "./player/Renderer";
+import { renderFrame } from "./player/Renderer";
 import {
   isYouTubeUrl,
   searchYouTube,
   downloadVideo,
 } from "./services/YouTubeService";
 
-const RAMP = " .:-=+*#%@";
-const RAMP_CODE = new Int32Array(RAMP.length);
-for (let i = 0; i < RAMP.length; i++) RAMP_CODE[i] = RAMP.charCodeAt(i);
-const RAMP_LAST = RAMP.length - 1;
-const UPPER_HALF = "\u2584".codePointAt(0)!;
-const BLACK: RGB = [0, 0, 0];
 const COINIT_APARTMENTTHREADED = 0x2;
 const MF_VERSION = 0x0002_0070;
 const MFSTARTUP_LITE = 0x1;
@@ -55,202 +32,6 @@ const ole32 = dlopen("ole32.dll", {
   CoInitializeEx: { args: [FFIType.ptr, FFIType.u32], returns: FFIType.i32 },
   CoUninitialize: { args: [], returns: FFIType.void },
 });
-
-const invokers = new Map<string, ReturnType<typeof CFunction>>();
-function vcall(
-  thisPtr: bigint,
-  slot: number,
-  argTypes: readonly FFIType[],
-  args: readonly unknown[],
-  returns: FFIType = FFIType.i32,
-): number {
-  const vtable = read.u64(Number(thisPtr) as Pointer, 0);
-  const method = read.u64(Number(vtable) as Pointer, slot * 8);
-  const key = `${method}|${returns}|${argTypes.join(",")}`;
-  let invoke = invokers.get(key);
-  if (invoke === undefined) {
-    invoke = CFunction({
-      ptr: Number(method) as Pointer,
-      args: [FFIType.u64, ...argTypes],
-      returns,
-    });
-    invokers.set(key, invoke);
-  }
-  return invoke(thisPtr, ...args) as number;
-}
-
-let lut: {
-  cols: number;
-  rows: number;
-  srcW: number;
-  srcH: number;
-  stride: number;
-  flip: boolean;
-  topOff: Int32Array;
-  botOff: Int32Array;
-  midOff: Int32Array;
-} | null = null;
-
-function srcOffset(
-  sx: number,
-  sy: number,
-  srcH: number,
-  stride: number,
-  flip: boolean,
-): number {
-  const row = flip ? srcH - 1 - sy : sy;
-  return row * stride + sx * 4;
-}
-
-function ensureLutForFrame(
-  cols: number,
-  rows: number,
-  srcW: number,
-  srcH: number,
-  stride: number,
-  flip: boolean,
-) {
-  if (
-    lut === null ||
-    lut.cols !== cols ||
-    lut.rows !== rows ||
-    lut.stride !== stride ||
-    lut.flip !== flip ||
-    lut.srcW !== srcW ||
-    lut.srcH !== srcH
-  ) {
-    const topOff = new Int32Array(cols * rows).fill(-1);
-    const botOff = new Int32Array(cols * rows).fill(-1);
-    const midOff = new Int32Array(cols * rows).fill(-1);
-
-    const gridPxW = cols;
-    const gridPxH = rows * 2;
-    const scale = Math.min(gridPxW / srcW, gridPxH / srcH);
-    const dstPxW = Math.max(1, Math.round(srcW * scale));
-    const dstPxH = Math.max(1, Math.round(srcH * scale));
-    const offPxX = Math.floor((gridPxW - dstPxW) / 2);
-    const offPxY = Math.floor((gridPxH - dstPxH) / 2);
-    const invScaleX = srcW / dstPxW;
-    const invScaleY = srcH / dstPxH;
-
-    for (let r = 0; r < rows; r++) {
-      const pyTop = r * 2;
-      const pyBot = r * 2 + 1;
-      const base = r * cols;
-      for (let c = 0; c < cols; c++) {
-        const lx = c - offPxX;
-        const sxF = (lx + 0.5) * invScaleX;
-        const inX = lx >= 0 && lx < dstPxW;
-        let sx = sxF | 0;
-        if (sx < 0) sx = 0;
-        else if (sx >= srcW) sx = srcW - 1;
-
-        const lyTop = pyTop - offPxY;
-        const lyBot = pyBot - offPxY;
-        const inYTop = lyTop >= 0 && lyTop < dstPxH;
-        const inYBot = lyBot >= 0 && lyBot < dstPxH;
-        const idx = base + c;
-
-        if (inX && inYTop) {
-          let sy = ((lyTop + 0.5) * invScaleY) | 0;
-          if (sy < 0) sy = 0;
-          else if (sy >= srcH) sy = srcH - 1;
-          topOff[idx] = srcOffset(sx, sy, srcH, stride, flip);
-        }
-        if (inX && inYBot) {
-          let sy = ((lyBot + 0.5) * invScaleY) | 0;
-          if (sy < 0) sy = 0;
-          else if (sy >= srcH) sy = srcH - 1;
-          botOff[idx] = srcOffset(sx, sy, srcH, stride, flip);
-        }
-        const lyMid = r * 2 + 1 - offPxY;
-        if (inX && (inYTop || inYBot)) {
-          let sy = ((lyMid + 0.5) * invScaleY) | 0;
-          if (sy < 0) sy = 0;
-          else if (sy >= srcH) sy = srcH - 1;
-          midOff[idx] = srcOffset(sx, sy, srcH, stride, flip);
-        }
-      }
-    }
-    lut = { cols, rows, srcW, srcH, stride, flip, topOff, botOff, midOff };
-  }
-  return lut;
-}
-
-function renderFrameOnTerm(
-  t: CharTerm,
-  frame: DecodedFrame,
-  mode: PlaybackMode,
-  srcW: number,
-  srcH: number,
-): void {
-  const L = ensureLutForFrame(
-    t.columns,
-    t.rows,
-    srcW,
-    srcH,
-    frame.stride,
-    frame.flip,
-  );
-  if (mode === "half") {
-    const { cols, rows, topOff, botOff } = L;
-    const fgRGB: [number, number, number] = [0, 0, 0];
-    const bgRGB: [number, number, number] = [0, 0, 0];
-    const src = frame.bytes;
-    for (let r = 0; r < rows; r++) {
-      const base = r * cols;
-      for (let c = 0; c < cols; c++) {
-        const idx = base + c;
-        const to = topOff[idx]!;
-        const bo = botOff[idx]!;
-        if (to < 0 && bo < 0) {
-          t.put(c, r, " ", BLACK, BLACK);
-          continue;
-        }
-        if (to >= 0) {
-          fgRGB[0] = src[to + 2]!;
-          fgRGB[1] = src[to + 1]!;
-          fgRGB[2] = src[to]!;
-        } else {
-          fgRGB[0] = 0;
-          fgRGB[1] = 0;
-          fgRGB[2] = 0;
-        }
-        if (bo >= 0) {
-          bgRGB[0] = src[bo + 2]!;
-          bgRGB[1] = src[bo + 1]!;
-          bgRGB[2] = src[bo]!;
-        } else {
-          bgRGB[0] = 0;
-          bgRGB[1] = 0;
-          bgRGB[2] = 0;
-        }
-        t.put(c, r, UPPER_HALF, fgRGB, bgRGB);
-      }
-    }
-  } else {
-    const { cols, rows, midOff } = L;
-    const src = frame.bytes;
-    for (let r = 0; r < rows; r++) {
-      const base = r * cols;
-      for (let c = 0; c < cols; c++) {
-        const idx = base + c;
-        const mo = midOff[idx]!;
-        if (mo < 0) {
-          t.put(c, r, " ", BLACK, BLACK);
-          continue;
-        }
-        const b = src[mo]!;
-        const g = src[mo + 1]!;
-        const rr = src[mo + 2]!;
-        const lum = (77 * rr + 150 * g + 29 * b) >> 8;
-        const gi = (lum * RAMP_LAST) >> 8;
-        const glyph = RAMP_CODE[gi <= RAMP_LAST ? gi : RAMP_LAST]!;
-        t.put(c, r, glyph, [rr, g, b], BLACK);
-      }
-    }
-  }
-}
 
 async function playVideo(path: string): Promise<void> {
   const coHr = ole32.symbols.CoInitializeEx(null, COINIT_APARTMENTTHREADED);
@@ -279,7 +60,7 @@ async function playVideo(path: string): Promise<void> {
     (process.env.CAPTURE_PNG !== undefined && process.env.CAPTURE_PNG !== "") ||
     process.env.BENCH === "1";
   const audio = headless
-    ? {
+    ? ({
         ok: false,
         rate: 0,
         channels: 0,
@@ -289,8 +70,10 @@ async function playVideo(path: string): Promise<void> {
         masterSec: () => 0,
         pause: () => {},
         resume: () => {},
+        seekTo: () => {},
+        setVolume: () => {},
         shutdown: () => {},
-      }
+      } as any)
     : createAudioSource(path);
   const audioActive = audio.ok;
 
@@ -308,38 +91,49 @@ async function playVideo(path: string): Promise<void> {
   let lastMoveT = -1000;
   let lastMouseSeq = -1;
   let fpsEma = 60;
-  const fgRGB: [number, number, number] = [0, 0, 0];
-  const bgRGB: [number, number, number] = [0, 0, 0];
+  let volume = 0.8;
 
-  function pullFrame(): DecodedFrame | null {
-    let frame: DecodedFrame | null = null;
+  function pullFrame() {
+    let frame = null;
     for (let tries = 0; tries < 8 && frame === null; tries++)
       frame = video.decodeNextFrame();
     return frame;
   }
 
-  function decodeAndRender(t: CharTerm): boolean {
+  function decodeAndRender(t: any): boolean {
     const frame = pullFrame();
     if (frame === null) return false;
     framesDecoded++;
     displayedTs = frame.tsSec;
-    renderFrameOnTerm(t, frame, mode, SRC_W, SRC_H);
+    renderFrame(t, frame, mode, SRC_W, SRC_H);
     video.releaseFrame();
     everDrew = true;
     return true;
   }
 
-  function drawOverlay(t: CharTerm, fps: number): void {
+  function drawOverlay(t: any, fps: number): void {
     const y = t.rows - 1;
-    const m = mode === "half" ? "HALF-BLOCK" : "ASCII";
+    const m = mode === "half" ? "HALF" : "ASCII";
     const dur =
       video.durationSec > 0 ? `/${video.durationSec.toFixed(1)}s` : "s";
     const snd = audioActive
-      ? ` · ♪ ${(audio.rate / 1000).toFixed(0)}k/${audio.channels}ch`
-      : " · (silent)";
-    const flags = `${paused ? " [PAUSED]" : ""}${turbo ? " [TURBO]" : ""}`;
-    const left = ` ${fileName} ${SRC_W}x${SRC_H} · ${m} · ${displayedTs.toFixed(1)}${dur}${snd}${flags}`;
-    const right = "SPACE pause · m mode · t turbo · ESC quit ";
+      ? ` ♪${(audio.rate / 1000).toFixed(0)}k/${audio.channels}ch`
+      : " (silent)";
+    const flags = `${paused ? " [PAUSE]" : ""}${turbo ? " [TURBO]" : ""}`;
+
+    // Progress bar
+    let progressBar = "";
+    if (video.durationSec > 0) {
+      const barLen = Math.max(10, Math.floor(t.columns * 0.3));
+      const progress = Math.min(1, displayedTs / video.durationSec);
+      const filled = Math.round(progress * barLen);
+      progressBar = " [";
+      for (let i = 0; i < barLen; i++) progressBar += i < filled ? "█" : "░";
+      progressBar += "]";
+    }
+
+    const left = ` ${fileName} ${SRC_W}x${SRC_H} ${m}${flags}${snd}${progressBar} ${displayedTs.toFixed(1)}${dur}`;
+    const right = "SPC pause · ←→ seek · ↑↓ vol · M mode · T turbo · Q quit ";
     t.fillRect(0, y, t.columns, 1, [18, 18, 24] as RGB);
     t.text(
       0,
@@ -352,6 +146,8 @@ async function playVideo(path: string): Promise<void> {
     const rx = Math.max(0, t.columns - right.length);
     if (rx > left.length)
       t.text(rx, y, right, [130, 130, 150] as RGB, [18, 18, 24] as RGB);
+
+    // FPS indicator
     const fc: RGB =
       fps >= 60
         ? ([120, 255, 140] as RGB)
@@ -364,12 +160,12 @@ async function playVideo(path: string): Promise<void> {
     t.text(fx, 0, fl, fc, [22, 22, 30] as RGB, true);
   }
 
-  function frameStep(t: CharTerm, time: number): void {
+  function frameStep(t: any, time: number): void {
     if (paused) return;
 
     if (headless || turbo) {
       if (!decodeAndRender(t) && !everDrew)
-        t.fillRect(0, 0, t.columns, t.rows, BLACK);
+        t.fillRect(0, 0, t.columns, t.rows, [0, 0, 0] as RGB);
       return;
     }
 
@@ -385,13 +181,14 @@ async function playVideo(path: string): Promise<void> {
     }
 
     if (!everDrew) {
-      if (!decodeAndRender(t)) t.fillRect(0, 0, t.columns, t.rows, BLACK);
+      if (!decodeAndRender(t))
+        t.fillRect(0, 0, t.columns, t.rows, [0, 0, 0] as RGB);
       return;
     }
 
     if (displayedTs >= clock) return;
     let guard = 0;
-    let lastFrame: DecodedFrame | null = null;
+    let lastFrame = null;
     while (displayedTs < clock && guard < 240) {
       guard++;
       const frame = pullFrame();
@@ -403,7 +200,7 @@ async function playVideo(path: string): Promise<void> {
       if (frame.tsSec >= clock) break;
     }
     if (lastFrame !== null) {
-      renderFrameOnTerm(t, lastFrame, mode, SRC_W, SRC_H);
+      renderFrame(t, lastFrame, mode, SRC_W, SRC_H);
       video.releaseFrame();
     }
   }
@@ -414,7 +211,7 @@ async function playVideo(path: string): Promise<void> {
     targetFps: Infinity,
     drawFps: false,
     mouse: true,
-    frame: (t, time, dt) => {
+    frame: (t: any, time: number, dt: number) => {
       const inst = dt > 0 ? 1 / dt : 60;
       fpsEma = fpsEma * 0.9 + inst * 0.1;
       if (t.mouse.active && t.mouse.sequence !== lastMouseSeq) {
@@ -429,7 +226,7 @@ async function playVideo(path: string): Promise<void> {
         drawOverlay(t, fpsEma);
       }
     },
-    onKey: (key) => {
+    onKey: (key: string) => {
       if (key === "space") {
         paused = !paused;
         if (audioActive) {
@@ -444,6 +241,31 @@ async function playVideo(path: string): Promise<void> {
           if (turbo) audio.pause();
           else audio.resume();
         }
+      } else if (key === "escape" || key === "q" || key === "Q") {
+        process.exit(0);
+      } else if (key === "right") {
+        // Seek forward 10s
+        const target = Math.min(
+          displayedTs + 10,
+          video.durationSec || displayedTs + 10,
+        );
+        video.seekTo(target);
+        if (audioActive) audio.seekTo(target);
+        displayedTs = target;
+      } else if (key === "left") {
+        // Seek backward 10s
+        const target = Math.max(displayedTs - 10, 0);
+        video.seekTo(target);
+        if (audioActive) audio.seekTo(target);
+        displayedTs = target;
+      } else if (key === "up") {
+        // Volume up
+        volume = Math.min(1, volume + 0.1);
+        if (audioActive) audio.setVolume(volume, volume);
+      } else if (key === "down") {
+        // Volume down
+        volume = Math.max(0, volume - 0.1);
+        if (audioActive) audio.setVolume(volume, volume);
       }
     },
   });
@@ -481,6 +303,10 @@ Usage:
 
 Controls:
   SPACE   Pause/Resume
+  LEFT    Seek backward 10s
+  RIGHT   Seek forward 10s
+  UP      Volume up
+  DOWN    Volume down
   M       Toggle Half-block/ASCII mode
   T       Toggle TURBO mode (unlimited fps)
   ESC/Q   Quit

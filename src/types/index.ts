@@ -14,6 +14,7 @@ export interface VideoSource {
   fps: number;
   decodeNextFrame(): DecodedFrame | null;
   releaseFrame(): void;
+  seekTo(seconds: number): void;
   shutdown(): void;
 }
 
@@ -27,6 +28,8 @@ export interface AudioSource {
   masterSec(): number;
   pause(): void;
   resume(): void;
+  seekTo(seconds: number): void;
+  setVolume(left: number, right: number): void;
   shutdown(): void;
 }
 

@@ -134,6 +134,7 @@ export function createVideoSource(path: string): VideoSource {
     fps: 0,
     decodeNextFrame: () => null,
     releaseFrame: () => {},
+    seekTo: () => {},
     shutdown: () => {},
   });
 
@@ -301,6 +302,20 @@ export function createVideoSource(path: string): VideoSource {
     h,
     durationSec,
     fps,
+    seekTo(seconds: number): void {
+      if (!alive) return;
+      releaseHeld();
+      const ticks = BigInt(Math.floor(seconds * 1e7));
+      seekProp.fill(0);
+      seekProp.writeUInt16LE(VT_I8, 0);
+      seekProp.writeBigInt64LE(ticks, 8);
+      vcall(
+        reader,
+        READER_SET_CURRENT_POSITION,
+        [FFIType.ptr, FFIType.ptr],
+        [guidNull.ptr!, seekProp.ptr!],
+      );
+    },
     decodeNextFrame(): DecodedFrame | null {
       if (!alive) return null;
       const hr = vcall(

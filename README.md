@@ -38,6 +38,8 @@ bun run src/index.ts search "cat videos"
 | Key | Action |
 |-----|--------|
 | SPACE | Pause/Resume |
+| ← → | Seek backward/forward 10s |
+| ↑ ↓ | Volume up/down |
 | M | Toggle Half-block/ASCII mode |
 | T | Toggle TURBO mode (unlimited fps) |
 | ESC/Q | Quit |

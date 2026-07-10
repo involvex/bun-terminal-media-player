@@ -53,22 +53,46 @@ BENCH=1 bun run src/index.ts video.mp4
    - Uses `@bun-win32/mfplat` for MFStartup/MFShutdown
    - Uses `@bun-win32/mfreadwrite` for `MFCreateSourceReaderFromURL`
    - Handles RGB32 format negotiation, stride detection, EOF looping
+   - `seekTo(seconds)` via `SetCurrentPosition` with VT_I8
 
 2. **AudioPlayer.ts** - Second `IMFSourceReader` for audio + winmm waveOut
    - Decodes audio to PCM format
    - Ring buffer of 8 x 16KB headers for smooth playback
    - `waveOutGetPosition(TIME_BYTES)` provides master clock for A/V sync
+   - `seekTo(seconds)` resets waveOut and repositions reader
+   - `setVolume(l, r)` via `waveOutSetVolume`
 
 3. **Renderer.ts** - Letterboxed downscale LUT + rendering
    - Precomputes source pixel offsets for each terminal cell
    - `renderHalfBlock()` uses `▀` with fg/bg colors
    - `renderAscii()` uses density ramp characters
+   - `renderFrame(t, frame, mode, srcW, srcH)` dispatches to appropriate renderer
 
 4. **index.ts** - Main playback loop
    - Initializes COM + Media Foundation
    - Creates video + audio sources
    - Uses `runText` from `@bun-win32/terminal` for the render loop
    - Frame stepping with audio-master clock sync
+   - Seeking (LEFT/RIGHT), volume (UP/DOWN), mode toggle (M), turbo (T)
+
+### Controls
+
+| Key | Action |
+|-----|--------|
+| SPACE | Pause/Resume |
+| LEFT | Seek backward 10s |
+| RIGHT | Seek forward 10s |
+| UP | Volume up |
+| DOWN | Volume down |
+| M | Toggle Half-block/ASCII mode |
+| T | Toggle TURBO mode (unlimited fps) |
+| ESC/Q | Quit |
+
+### Overlay
+
+- Bottom bar: filename, resolution, mode, flags, progress bar, timestamp
+- Top-right: FPS indicator (green ≥60, yellow ≥30, red <30)
+- Auto-hides after 2s of mouse inactivity
 
 ### COM/FFI Pattern
 
