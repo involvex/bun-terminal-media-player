@@ -17,12 +17,12 @@ This is a Bun/TypeScript terminal video player for Windows that renders videos a
 
 ```json
 {
-  "@bun-win32/terminal": "latest",
-  "@bun-win32/mfplat": "latest",
-  "@bun-win32/mfreadwrite": "latest",
-  "@bun-win32/ole32": "latest",
-  "@bun-win32/winmm": "latest",
-  "@bun-win32/kernel32": "latest"
+	"@bun-win32/terminal": "latest",
+	"@bun-win32/mfplat": "latest",
+	"@bun-win32/mfreadwrite": "latest",
+	"@bun-win32/ole32": "latest",
+	"@bun-win32/winmm": "latest",
+	"@bun-win32/kernel32": "latest"
 }
 ```
 
@@ -77,16 +77,16 @@ BENCH=1 bun run src/index.ts video.mp4
 
 ### Controls
 
-| Key | Action |
-|-----|--------|
-| SPACE | Pause/Resume |
-| LEFT | Seek backward 10s |
-| RIGHT | Seek forward 10s |
-| UP | Volume up |
-| DOWN | Volume down |
-| M | Toggle Half-block/ASCII mode |
-| T | Toggle TURBO mode (unlimited fps) |
-| ESC/Q | Quit |
+| Key   | Action                            |
+| ----- | --------------------------------- |
+| SPACE | Pause/Resume                      |
+| LEFT  | Seek backward 10s                 |
+| RIGHT | Seek forward 10s                  |
+| UP    | Volume up                         |
+| DOWN  | Volume down                       |
+| M     | Toggle Half-block/ASCII mode      |
+| T     | Toggle TURBO mode (unlimited fps) |
+| ESC/Q | Quit                              |
 
 ### Overlay
 
@@ -99,10 +99,16 @@ BENCH=1 bun run src/index.ts video.mp4
 The codebase uses inline COM vtable invocations:
 
 ```typescript
-function vcall(thisPtr: bigint, slot: number, argTypes: FFIType[], args: unknown[], returns: FFIType): number {
-  const vtable = read.u64(Number(thisPtr) as Pointer, 0);
-  const method = read.u64(Number(vtable) as Pointer, slot * 8);
-  // ... create CFunction and call
+function vcall(
+	thisPtr: bigint,
+	slot: number,
+	argTypes: FFIType[],
+	args: unknown[],
+	returns: FFIType,
+): number {
+	const vtable = read.u64(Number(thisPtr) as Pointer, 0)
+	const method = read.u64(Number(vtable) as Pointer, slot * 8)
+	// ... create CFunction and call
 }
 ```
 
@@ -115,9 +121,9 @@ Slot numbers are verified against Microsoft SDK headers (mfreadwrite.h, mfobject
 Every `decodeNextFrame()` returns a frame with a locked buffer. You **must** call `releaseFrame()` when done:
 
 ```typescript
-const frame = video.decodeNextFrame();
+const frame = video.decodeNextFrame()
 // use frame
-video.releaseFrame(); // releases the MF buffer
+video.releaseFrame() // releases the MF buffer
 ```
 
 ### 2. Audio Master Clock
@@ -125,10 +131,10 @@ video.releaseFrame(); // releases the MF buffer
 Audio position is the authoritative clock. Video decoding drops frames to catch up:
 
 ```typescript
-audio.feed();
-const clock = audio.masterSec(); // bytes / bytesPerSec = seconds
+audio.feed()
+const clock = audio.masterSec() // bytes / bytesPerSec = seconds
 while (displayedTs < clock) {
-  // decode and drop frames
+	// decode and drop frames
 }
 ```
 
@@ -138,11 +144,11 @@ Both video and audio readers loop back to position 0 on EOF. The audio device mu
 
 ## Win32 FFI Type Reference
 
-| Win32 type | FFI | TypeScript |
-|---|---|---|
-| `HANDLE`, `HWND` | `FFIType.u64` | `bigint` |
-| `DWORD`, `UINT`, `BOOL` | `FFIType.u32` | `number` |
-| `LPVOID`, `LPCWSTR` | `FFIType.ptr` | `Pointer` |
+| Win32 type              | FFI           | TypeScript |
+| ----------------------- | ------------- | ---------- |
+| `HANDLE`, `HWND`        | `FFIType.u64` | `bigint`   |
+| `DWORD`, `UINT`, `BOOL` | `FFIType.u32` | `number`   |
+| `LPVOID`, `LPCWSTR`     | `FFIType.ptr` | `Pointer`  |
 
 For handles use `0n` for NULL. For pointers use `null`.
 
@@ -162,15 +168,18 @@ BENCH=1 FPS_REPORT=1 bun run src/index.ts video.mp4
 ## Troubleshooting
 
 ### "MFStartup failed"
+
 - Media Foundation requires `CoInitializeEx` first
 - Call `ole32.symbols.CoInitializeEx(null, COINIT_APARTMENTTHREADED)` before `MFStartup`
 
 ### No audio
+
 - Check that the video has an audio track
 - Verify winmm is available (`winmm.dll`)
 - Audio is disabled in headless mode (`BENCH=1` or `CAPTURE_PNG=1`)
 
 ### Poor playback performance
+
 - Try ASCII mode: `VIDEO_MODE=ascii bun run src/index.ts video.mp4`
 - Use TURBO mode to skip frame pacing: press `T` during playback
 

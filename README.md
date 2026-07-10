@@ -35,23 +35,23 @@ bun run src/index.ts search "cat videos"
 
 ## Controls
 
-| Key | Action |
-|-----|--------|
-| SPACE | Pause/Resume |
-| ← → | Seek backward/forward 10s |
-| ↑ ↓ | Volume up/down |
-| M | Toggle Half-block/ASCII mode |
-| T | Toggle TURBO mode (unlimited fps) |
-| ESC/Q | Quit |
+| Key   | Action                            |
+| ----- | --------------------------------- |
+| SPACE | Pause/Resume                      |
+| ← →   | Seek backward/forward 10s         |
+| ↑ ↓   | Volume up/down                    |
+| M     | Toggle Half-block/ASCII mode      |
+| T     | Toggle TURBO mode (unlimited fps) |
+| ESC/Q | Quit                              |
 
 ## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
+| Variable           | Description                               |
+| ------------------ | ----------------------------------------- |
 | `VIDEO_MODE=ascii` | Start in ASCII mode (default: half-block) |
-| `BENCH=1` | Headless benchmark mode |
-| `CAPTURE_PNG=1` | Capture first frame to PNG |
-| `FPS_REPORT=1` | Print frame statistics |
+| `BENCH=1`          | Headless benchmark mode                   |
+| `CAPTURE_PNG=1`    | Capture first frame to PNG                |
+| `FPS_REPORT=1`     | Print frame statistics                    |
 
 ## Architecture
 
