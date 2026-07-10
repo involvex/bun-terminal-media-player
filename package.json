@@ -17,7 +17,9 @@
     "format": "prettier --write src/",
     "format:check": "prettier --check src/",
     "test": "bun test",
-    "bench": "BENCH=1 bun run src/index.ts"
+    "bench": "BENCH=1 bun run src/index.ts",
+    "check": "bun run format && bun run lint:fix && bun run typecheck",
+    "prebuild": "bun run check"
   },
   "prettier": "@involvex/prettier-config",
   "dependencies": {
