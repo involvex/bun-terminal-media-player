@@ -78,6 +78,19 @@ This project is built on the excellent [bun-win32](https://github.com/ObscurityS
 - `@bun-win32/ole32` - COM initialization
 - `@bun-win32/winmm` - Windows multimedia audio output
 
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `bun run start` | Run the player |
+| `bun run dev` | Run with hot reload |
+| `bun run build` | Build to `dist/` |
+| `bun run typecheck` | Type check with tsc |
+| `bun run lint` | Lint with eslint |
+| `bun run lint:fix` | Lint and auto-fix |
+| `bun run format` | Format with prettier |
+| `bun run format:check` | Check formatting |
+
 ## License
 
 MIT

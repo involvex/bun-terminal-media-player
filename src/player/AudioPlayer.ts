@@ -43,8 +43,6 @@ const S_OK = 0
 const MF_SOURCE_READER_FIRST_AUDIO_STREAM = 0xffff_fffd
 const MF_SOURCE_READERF_ENDOFSTREAM = 0x2
 const VT_I8 = 20
-const COINIT_APARTMENTTHREADED = 0x2
-const RPC_E_CHANGED_MODE = 0x8001_0106
 
 const MF_MT_MAJOR_TYPE = '48eba18e-f8c9-4687-bf11-0a74c9f96a8f'
 const MF_MT_SUBTYPE = 'f7e34c9a-42e8-4714-b74b-cb29d72c35e5'
@@ -88,11 +86,6 @@ function guidBytes(value: string): Buffer {
 		buffer[8 + i] = parseInt(data4.slice(i * 2, i * 2 + 2), 16)
 	return buffer
 }
-
-const ole32 = dlopen('ole32.dll', {
-	CoInitializeEx: {args: [FFIType.ptr, FFIType.u32], returns: FFIType.i32},
-	CoUninitialize: {args: [], returns: FFIType.void},
-})
 
 const mfrw = dlopen('mfreadwrite.dll', {
 	MFCreateSourceReaderFromURL: {

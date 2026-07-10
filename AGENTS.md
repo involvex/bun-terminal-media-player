@@ -45,6 +45,19 @@ bun run src/index.ts search "query"
 BENCH=1 bun run src/index.ts video.mp4
 ```
 
+## Scripts
+
+```bash
+bun run start          # Run the player
+bun run dev            # Run with hot reload
+bun run build          # Build to dist/
+bun run typecheck      # Type check with tsc
+bun run lint           # Lint with eslint
+bun run lint:fix       # Lint and auto-fix
+bun run format         # Format with prettier
+bun run format:check   # Check formatting
+```
+
 ## Code Architecture
 
 ### Core Components

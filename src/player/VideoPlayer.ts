@@ -40,8 +40,6 @@ function comRelease(thisPtr: bigint): void {
 }
 
 const S_OK = 0
-const MF_VERSION = 0x0002_0070
-const MFSTARTUP_LITE = 0x1
 const MF_SOURCE_READER_FIRST_VIDEO_STREAM = 0xffff_fffc
 const MF_SOURCE_READERF_ENDOFSTREAM = 0x2
 const VT_I8 = 20

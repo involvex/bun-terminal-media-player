@@ -1,5 +1,5 @@
 import type {DecodedFrame, DownscaleLut, PlaybackMode} from '../types'
-import {CharTerm, type RGB} from '@bun-win32/terminal'
+import type {CharTerm, RGB} from '@bun-win32/terminal'
 
 const RAMP = ' .:-=+*#%@'
 const RAMP_CODE = new Int32Array(RAMP.length)

@@ -1,34 +1,42 @@
 {
-	"name": "@involvex/bun-terminal-media-player",
-	"version": "1.0.0",
-	"description": "Terminal video player with ASCII art rendering using bun-win32",
-	"author": "involvex",
-	"type": "module",
-	"bin": {
-		"btm": "./src/index.ts"
-	},
-	"scripts": {
-		"bench": "BENCH=1 bun run src/index.ts",
-		"dev": "bun run --watch src/index.ts",
-		"format": "prettier . --write",
-		"start": "bun run src/index.ts",
-		"test": "bun test"
-	},
-	"prettier": "@involvex/prettier-config",
-	"dependencies": {
-		"@bun-win32/kernel32": "latest",
-		"@bun-win32/mfplat": "latest",
-		"@bun-win32/mfreadwrite": "latest",
-		"@bun-win32/ole32": "latest",
-		"@bun-win32/terminal": "latest",
-		"@bun-win32/winmm": "latest"
-	},
-	"devDependencies": {
-		"@involvex/prettier-config": "^0.0.5",
-		"@types/bun": "latest",
-		"prettier": "^3.9.5"
-	},
-	"engines": {
-		"bun": ">=1.1.0"
-	}
+  "name": "@involvex/bun-terminal-media-player",
+  "version": "1.0.0",
+  "description": "Terminal video player with ASCII art rendering using bun-win32",
+  "author": "involvex",
+  "type": "module",
+  "bin": {
+    "btm": "./src/index.ts"
+  },
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "dev": "bun run --watch src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write src/",
+    "format:check": "prettier --check src/",
+    "test": "bun test",
+    "bench": "BENCH=1 bun run src/index.ts"
+  },
+  "prettier": "@involvex/prettier-config",
+  "dependencies": {
+    "@bun-win32/kernel32": "latest",
+    "@bun-win32/mfplat": "latest",
+    "@bun-win32/mfreadwrite": "latest",
+    "@bun-win32/ole32": "latest",
+    "@bun-win32/terminal": "latest",
+    "@bun-win32/winmm": "latest"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@involvex/prettier-config": "^0.0.5",
+    "@types/bun": "latest",
+    "eslint": "^10.6.0",
+    "prettier": "^3.9.5",
+    "typescript-eslint": "^8.63.0"
+  },
+  "engines": {
+    "bun": ">=1.1.0"
+  }
 }
