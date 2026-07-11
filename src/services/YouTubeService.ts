@@ -1,4 +1,5 @@
 import {type YouTubeResult} from '../types'
+import {unlinkSync} from 'node:fs'
 import {tmpdir} from 'node:os'
 
 export async function searchYouTube(query: string): Promise<YouTubeResult[]> {
@@ -45,6 +46,28 @@ export async function searchYouTube(query: string): Promise<YouTubeResult[]> {
 
 export async function downloadVideo(url: string): Promise<string | null> {
 	const tempDir = tmpdir()
+
+	try {
+		unlinkSync(tempDir + '/temp_video.mp4')
+	} catch {
+		/* ignore */
+	}
+	try {
+		unlinkSync(tempDir + '/temp_video.webm')
+	} catch {
+		/* ignore */
+	}
+	try {
+		unlinkSync(tempDir + '/temp_video.mkv')
+	} catch {
+		/* ignore */
+	}
+	try {
+		unlinkSync(tempDir + '/temp_video.avi')
+	} catch {
+		/* ignore */
+	}
+
 	const outputPath = `${tempDir}/temp_video.%(ext)s`
 
 	try {
@@ -54,6 +77,7 @@ export async function downloadVideo(url: string): Promise<string | null> {
 				'-f',
 				'best[height<=720]/best',
 				'--no-playlist',
+				'--force-overwrites',
 				'-o',
 				outputPath,
 				url,
@@ -95,6 +119,6 @@ function formatViewCount(count: number): string {
 	return `${count} views`
 }
 
-export function isYouTubeUrl(url: string): boolean {
-	return url.includes('youtube.com') || url.includes('youtu.be')
+export function isDownloadableUrl(url: string): boolean {
+	return url.startsWith('http://') || url.startsWith('https://')
 }

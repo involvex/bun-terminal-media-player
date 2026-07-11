@@ -8,7 +8,7 @@ import {
 	closeMfreadwrite as closeVideoMfreadwrite,
 } from './player/VideoPlayer'
 import {
-	isYouTubeUrl,
+	isDownloadableUrl,
 	searchYouTube,
 	downloadVideo,
 } from './services/YouTubeService'
@@ -341,8 +341,8 @@ Environment Variables:
 
 	let videoPath = args[0]
 
-	if (isYouTubeUrl(videoPath)) {
-		console.log('Downloading from YouTube...')
+	if (isDownloadableUrl(videoPath)) {
+		console.log('Downloading video...')
 		const path = await downloadVideo(videoPath)
 		if (!path) {
 			console.error('Failed to download video')
