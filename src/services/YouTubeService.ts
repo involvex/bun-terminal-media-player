@@ -96,6 +96,7 @@ export async function downloadVideo(url: string): Promise<string | null> {
 		const glob = new Bun.Glob('temp_video.*')
 		const files = [...glob.scanSync(tempDir)]
 		const videoFile = files.find(f => !f.endsWith('.part'))
+		if (videoFile) return tempDir + '/' + videoFile
 
 		return videoFile || null
 	} catch (error) {
